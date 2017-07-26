@@ -3,6 +3,7 @@ package VexRiscv.demo
 import VexRiscv.Plugin._
 import VexRiscv.ip.{DataCacheConfig, InstructionCacheConfig}
 import VexRiscv.{Plugin, VexRiscv, VexRiscvConfig}
+import _root_.VexRiscv.coprocessor.{CustomInstrPlugin, VexRiscvCoProcessor, VexRiscvCoProcessorConfig}
 import spinal.core._
 
 /**
@@ -94,5 +95,5 @@ object GenFull extends App{
     )
   )
 
-  SpinalVerilog(cpu())
+  SpinalVhdl(cpu())
 }
