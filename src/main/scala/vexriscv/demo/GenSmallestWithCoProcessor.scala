@@ -1,7 +1,7 @@
 package VexRiscv.demo
 
-import VexRiscv.Plugin._
-import VexRiscv.{Plugin, VexRiscv, VexRiscvConfig}
+import vexriscv.plugin._
+import vexriscv.{plugin, VexRiscv, VexRiscvConfig}
 import _root_.VexRiscv.coprocessor.{CustomInstrPlugin, VexRiscvCoProcessor, VexRiscvCoProcessorConfig}
 import spinal.core._
 
@@ -46,7 +46,7 @@ object GenSmallestWithCoProcessor extends App{
           catchIllegalInstruction = false
         ),
         new RegFilePlugin(
-          regFileReadyKind = Plugin.SYNC,
+          regFileReadyKind = plugin.SYNC,
           zeroBoot = true
         ),
         new IntAluPlugin,
@@ -74,5 +74,5 @@ object GenSmallestWithCoProcessor extends App{
     )
   )
 
-  SpinalVerilog(cpu())
+  SpinalVhdl(cpu())
 }

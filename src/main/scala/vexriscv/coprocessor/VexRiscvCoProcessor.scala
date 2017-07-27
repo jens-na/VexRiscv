@@ -1,7 +1,7 @@
 package VexRiscv.coprocessor
 
 import spinal.core._
-import _root_.VexRiscv.{Pipeline, Stage, Stageable, VexRiscv}
+import _root_.vexriscv._
 
 
 case class VexRiscvCoProcessorConfig(val opcode : MaskedLiteral) {

@@ -1,7 +1,7 @@
 package VexRiscv.coprocessor
 
-import VexRiscv._
-import _root_.VexRiscv.Plugin.{Masked, Plugin}
+import vexriscv._
+import _root_.vexriscv.plugin.{Masked, Plugin}
 import spinal.core._
 
 class CustomInstrPlugin(val coProcessor: VexRiscvCoProcessor) extends Plugin[VexRiscv] {
