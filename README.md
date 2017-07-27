@@ -20,10 +20,11 @@ This repository host an RISC-V implementation written in SpinalHDL. There is som
 - Pipelined on 5 stages (Fetch, Decode, Execute, Memory, WriteBack)
 - 1.16 DMIPS/Mhz when all features are enabled
 - Optimized for FPGA
+- AXI4 and Avalon ready
 - Optional MUL/DIV extension
 - Optional instruction and data caches
 - Optional MMU
-- Optional debug extension allowing GDB debugging via an openOCD JTAG connection
+- Optional debug extension allowing eclipse debugging via an GDB >> openOCD >> JTAG connection
 - Optional interrupts and exception handling with the Machine and the User mode from the riscv-privileged-v1.9.1 spec.
 - Two implementation of shift instructions, Single cycle / shiftNumber cycles
 - Each stage could have bypass or interlock hazard logic
@@ -39,7 +40,7 @@ The hardware description of this CPU is done by using an very software oriented 
 ## Area usage and maximal frequency 
 
 The following number where obtains by synthesis the CPU as toplevel without any specific synthesis option to save area or to get better maximal frequency (neutral).
-The used CPU corresponding configuration can be find in src/scala/VexRiscv/demo.
+The used CPU corresponding configuration can be find in src/scala/vexriscv/demo.
 
 ```
 VexRiscv smallest (RV32I, 0.47 DMIPS/Mhz, no datapath bypass, no interrupt) ->
@@ -55,10 +56,16 @@ VexRiscv smallest (RV32I, 0.47 DMIPS/Mhz, no datapath bypass) ->
   Cyclone II -> 144 Mhz 844 LUT 578 FF 
   
 VexRiscv small and productive (RV32I, 0.78 DMIPS/Mhz)  ->
-  Artix 7 -> 330 Mhz 719 LUT 557 FF 
-  Cyclone V -> 153 Mhz 539 ALMs
+  Artix 7   -> 330 Mhz 719 LUT 557 FF 
+  Cyclone V  -> 153 Mhz 539 ALMs
   Cyclone IV -> 148 Mhz 1,127 LUT 552 FF 
   Cyclone II -> 114 Mhz 1,133 LUT 551 FF 
+
+VexRiscv full no cache (RV32IM, 1.14 DMIPS/Mhz, single cycle barrel shifter, debug module, catch exceptions, static branch) ->
+  Artix 7    -> 291 Mhz 1403 LUT 936 FF 
+  Cyclone V  -> 147 Mhz 928 ALMs
+  Cyclone IV -> 137 Mhz 1,910 LUT 959 FF 
+  Cyclone II -> 110 Mhz 1,940 LUT 958 FF 
 
 VexRiscv full (RV32IM, 1.14 DMIPS/Mhz, I$, D$, single cycle barrel shifter, debug module, catch exceptions, static branch) ->
   Artix 7    -> 249 Mhz 1862 LUT 1498 FF 
@@ -103,8 +110,8 @@ sudo make install
 
 ## CPU generation
 You can find two example of CPU instantiation in :
-- src/main/scala/VexRiscv/GenFull.scala
-- src/main/scala/VexRiscv/GenSmallest.scala
+- src/main/scala/vexriscv/GenFull.scala
+- src/main/scala/vexriscv/GenSmallest.scala
 
 To generate the corresponding RTL as a VexRiscv.v file, run (it could take time the first time you run it):
 
@@ -112,10 +119,10 @@ NOTE :
 The VexRiscv could need the unreleased master-head of SpinalHDL. If it fail to compile, just get the SpinalHDL repository and do a "sbt publish-local" in it.
 
 ```sh
-sbt "run-main VexRiscv.demo.GenFull"
+sbt "run-main vexriscv.demo.GenFull"
 
 # or
-sbt "run-main VexRiscv.demo.GenSmallest"
+sbt "run-main vexriscv.demo.GenSmallest"
 ```
 
 ## Regression tests
@@ -126,7 +133,7 @@ To run tests (need the verilator simulator), go in the src/test/cpp/regression f
 make clean run
 
 # To test the GenSmallest CPU
-make clean run IBUS=IBUS_SIMPLE DBUS=DBUS_SIMPLE CSR=no MMU=no DEBUG_PLUGIN=no MUL=no DIV=no
+make clean run IBUS=SIMPLE DBUS=SIMPLE CSR=no MMU=no DEBUG_PLUGIN=no MUL=no DIV=no
 ```
 
 ## Interactive debug of the simulated CPU via GDB OpenOCD and Verilator
@@ -137,7 +144,7 @@ Then you can use the https://github.com/SpinalHDL/openocd_riscv tool to create a
 
 ```sh
 #in the VexRiscv repository, to run the simulation on which one OpenOCD can connect itself =>
-sbt "run-main VexRiscv.demo.GenFull"
+sbt "run-main vexriscv.demo.GenFull"
 cd src/test/cpp/regression
 make run DEBUG_PLUGIN_EXTERNAL=yes
 
@@ -158,7 +165,7 @@ continue
 You can use the eclipse + zilin embedded CDT plugin to do it (http://opensource.zylin.com/embeddedcdt.html). Tested with Helios Service Release 2 and the corresponding zylin plugin.
 
 ## Briey SoC
-As a demonstrator, a SoC named Briey is implemented in src/main/scala/VexRiscv/demo/Briey.scala. This SoC is very similar to the Pinsec one  :
+As a demonstrator, a SoC named Briey is implemented in src/main/scala/vexriscv/demo/Briey.scala. This SoC is very similar to the Pinsec one  :
 
 <img src="http://cdn.rawgit.com/SpinalHDL/SpinalDoc/dd17971aa549ccb99168afd55aad274bbdff1e88/asset/picture/pinsec_hardware.svg"   align="middle" width="300">
 
@@ -166,7 +173,7 @@ As a demonstrator, a SoC named Briey is implemented in src/main/scala/VexRiscv/d
 To generate the Briey SoC Hardware :
 
 ```sh
-sbt "run-main VexRiscv.demo.Briey"
+sbt "run-main vexriscv.demo.Briey"
 ```
 
 To run the verilator simulation of the Briey SoC which can be then connected to OpenOCD/GDB, first get those dependencies :
@@ -190,6 +197,15 @@ src/openocd -f tcl/interface/jtag_tcp.cfg -c "set BRIEY_CPU0_YAML /home/spinalvm
 You can find multiples software examples and demo there : https://github.com/SpinalHDL/BrieySoftware
 
 You can find some FPGA project which instantiate the Briey SoC there (DE1-SoC, DE0-Nano): https://drive.google.com/drive/folders/0B-CqLXDTaMbKZGdJZlZ5THAxRTQ?usp=sharing
+
+There is some measurements of Briey SoC timings and area : 
+
+```
+  Artix 7    -> 230 Mhz 3551 LUT 3612 FF 
+  Cyclone V  -> 126 Mhz 2,608 ALMs
+  Cyclone IV -> 117 Mhz 5,196 LUT 3,784 FF 
+  Cyclone II -> 102 Mhz 5,321 LUT 3,787 FF 
+```
 
 ## Build the RISC-V GCC
 
@@ -224,9 +240,12 @@ echo -e "\\nRISC-V Toolchain installation completed!"
 
 ## CPU parametrization and instantiation example
 
-You can find many example of different config in the https://github.com/SpinalHDL/VexRiscv/tree/master/src/main/scala/VexRiscv/demo folder. There is one :
+You can find many example of different config in the https://github.com/SpinalHDL/VexRiscv/tree/master/src/main/scala/vexriscv/demo folder. There is one :
 
 ```scala
+import vexriscv._
+import vexriscv.plugin._
+
 //Instanciate one VexRiscv
 val cpu = new VexRiscv(
   //Provide a configuration instance
@@ -281,8 +300,8 @@ There is an example of an simple plugin which add an simple SIMD_ADD instruction
 
 ```scala
 import spinal.core._
-import VexRiscv.Plugin.Plugin
-import VexRiscv.{Stageable, DecoderService, VexRiscv}
+import vexriscv.plugin.Plugin
+import vexriscv.{Stageable, DecoderService, VexRiscv}
 
 //This plugin example will add a new instruction named SIMD_ADD which do the following :
 //
