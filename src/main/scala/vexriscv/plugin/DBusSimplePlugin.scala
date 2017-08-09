@@ -46,6 +46,7 @@ object DBusSimpleBus{
     maximumPendingReadTransactions = 1
   )
 }
+
 case class DBusSimpleBus() extends Bundle with IMasterSlave{
   val cmd = Stream(DBusSimpleCmd())
   val rsp = DBusSimpleRsp()
@@ -133,7 +134,7 @@ case class DBusSimpleBus() extends Bundle with IMasterSlave{
 }
 
 
-class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Boolean) extends Plugin[VexRiscv]{
+class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Boolean, earlyInjection : Boolean = false) extends Plugin[VexRiscv]{
 
   var dBus  : DBusSimpleBus = null
 
@@ -161,7 +162,7 @@ class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Bool
       SRC2_CTRL -> Src2CtrlEnum.IMI,
       REGFILE_WRITE_VALID -> True,
       BYPASSABLE_EXECUTE_STAGE -> False,
-      BYPASSABLE_MEMORY_STAGE  -> False
+      BYPASSABLE_MEMORY_STAGE  -> Bool(earlyInjection)
     )
 
     val storeActions = stdActions ++ List(
@@ -209,7 +210,7 @@ class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Bool
         default -> input(RS2)(31 downto 0)
       )
       when(arbitration.isValid && input(MEMORY_ENABLE) && !dBus.cmd.ready && !input(ALIGNEMENT_FAULT)){
-        arbitration.haltIt := True
+        arbitration.haltItself := True
       }
 
       insert(MEMORY_ADDRESS_LOW) := dBus.cmd.address(1 downto 0)
@@ -221,7 +222,7 @@ class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Bool
 
 
       insert(MEMORY_READ_DATA) := dBus.rsp.data
-      arbitration.haltIt setWhen(arbitration.isValid && input(MEMORY_ENABLE) && input(REGFILE_WRITE_VALID) && !dBus.rsp.ready)
+      arbitration.haltItself setWhen(arbitration.isValid && input(MEMORY_ENABLE) && input(REGFILE_WRITE_VALID) && !dBus.rsp.ready)
 
       if(catchAccessFault || catchAddressMisaligned){
         if(!catchAccessFault){
@@ -249,8 +250,9 @@ class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Bool
     }
 
     //Reformat read responses, REGFILE_WRITE_DATA overriding
-    writeBack plug new Area {
-      import writeBack._
+    val injectionStage = if(earlyInjection) memory else writeBack
+    injectionStage plug new Area {
+      import injectionStage._
 
 
       val rspShifted = MEMORY_READ_DATA()
@@ -271,7 +273,8 @@ class DBusSimplePlugin(catchAddressMisaligned : Boolean, catchAccessFault : Bool
         input(REGFILE_WRITE_DATA) := rspFormated
       }
 
-      assert(!(arbitration.isValid && input(MEMORY_ENABLE) && !input(INSTRUCTION)(5) && arbitration.isStuck),"DBusSimplePlugin doesn't allow memory stage stall when read happend")
+      if(!earlyInjection)
+        assert(!(arbitration.isValid && input(MEMORY_ENABLE) && !input(INSTRUCTION)(5) && arbitration.isStuck),"DBusSimplePlugin doesn't allow memory stage stall when read happend")
     }
   }
 }

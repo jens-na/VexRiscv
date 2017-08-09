@@ -20,7 +20,6 @@ object VexRiscvSynthesisBench {
       SpinalVerilog(GenSmallest.cpu().setDefinitionName(getRtlPath().split("\\.").head))
     }
 
-
     val smallAndProductive = new Rtl {
       override def getName(): String = "VexRiscv small and productive"
       override def getRtlPath(): String = "VexRiscvSmallAndProductive.v"
@@ -32,7 +31,6 @@ object VexRiscvSynthesisBench {
       override def getRtlPath(): String = "VexRiscvFullNoMmuNoCache.v"
       SpinalVerilog(GenFullNoMmuNoCache.cpu().setDefinitionName(getRtlPath().split("\\.").head))
     }
-
 
     val fullNoMmu = new Rtl {
       override def getName(): String = "VexRiscv full no MMU"
@@ -76,6 +74,46 @@ object BrieySynthesisBench {
 
 
     val rtls = List(briey)
+
+    val targets = XilinxStdTargets(
+      vivadoArtix7Path = "E:\\Xilinx\\Vivado\\2016.3\\bin"
+    ) ++ AlteraStdTargets(
+      quartusCycloneIIPath = "D:/altera/13.0sp1/quartus/bin64",
+      quartusCycloneIVPath = "D:/altera_lite/15.1/quartus/bin64",
+      quartusCycloneVPath  = "D:/altera_lite/15.1/quartus/bin64"
+    )
+
+    Bench(rtls, targets, "E:/tmp/")
+  }
+}
+
+
+
+
+object MuraxSynthesisBench {
+  def main(args: Array[String]) {
+    val murax = new Rtl {
+      override def getName(): String = "Murax"
+      override def getRtlPath(): String = "Murax.v"
+      SpinalVerilog({
+        val murax = new Murax(MuraxConfig.default).setDefinitionName(getRtlPath().split("\\.").head)
+        murax.io.mainClk.setName("clk")
+        murax
+      })
+    }
+
+
+    val muraxFast = new Rtl {
+      override def getName(): String = "MuraxFast"
+      override def getRtlPath(): String = "MuraxFast.v"
+      SpinalVerilog({
+        val murax = new Murax(MuraxConfig.fast).setDefinitionName(getRtlPath().split("\\.").head)
+        murax.io.mainClk.setName("clk")
+        murax
+      })
+    }
+
+    val rtls = List(murax, muraxFast)
 
     val targets = XilinxStdTargets(
       vivadoArtix7Path = "E:\\Xilinx\\Vivado\\2016.3\\bin"

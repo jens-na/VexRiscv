@@ -8,6 +8,7 @@
 - [Interactive debug of the simulated CPU via GDB OpenOCD and Verilator](#interactive-debug-of-the-simulated-cpu-via-gdb-openocd-and-verilator)
 - [Using eclipse to run the software and debug it](#using-eclipse-to-run-the-software-and-debug-it)
 - [Briey SoC](#briey-soc)
+- [Murax SoC](#murax-soc)
 - [Build the RISC-V GCC](#build-the-risc-v-gcc)
 - [CPU parametrization and instantiation example](#cpu-parametrization-and-instantiation-example)
 - [Add a custom instruction to the CPU via the plugin system](#add-a-custom-instruction-to-the-cpu-via-the-plugin-system)
@@ -39,7 +40,9 @@ The hardware description of this CPU is done by using an very software oriented 
 
 ## Area usage and maximal frequency 
 
-The following number where obtains by synthesis the CPU as toplevel without any specific synthesis option to save area or to get better maximal frequency (neutral).
+The following number where obtains by synthesis the CPU as toplevel without any specific synthesis option to save area or to get better maximal frequency (neutral).<br>
+The clock constraint is set to a unattainable value, which tends to increase the design area.<br>
+
 The used CPU corresponding configuration can be find in src/scala/vexriscv/demo.
 
 ```
@@ -86,7 +89,7 @@ On Ubuntu 14 :
 
 ```sh
 # JAVA JDK 7 or 8
-sudo apt-get install openjdk-7-jdk
+sudo apt-get install openjdk-8-jdk
 
 # SBT
 echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
@@ -94,7 +97,7 @@ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89
 sudo apt-get update
 sudo apt-get install sbt
 
-# Verilator (for sim only)
+# Verilator (for sim only, realy need 3.9+, in general apt-get will give you 3.8)
 sudo apt-get install git make autoconf g++ flex bison
 git clone http://git.veripool.org/git/verilator   # Only first time
 unsetenv VERILATOR_ROOT  # For csh; ignore error if on bash
@@ -108,6 +111,17 @@ make
 sudo make install
 ```
 
+The VexRiscv need the unreleased master-head of SpinalHDL :
+
+```sh
+# Compile and localy publish the latest SpinalHDL
+rm -rf SpinalHDL
+git clone https://github.com/SpinalHDL/SpinalHDL.git
+cd SpinalHDL
+sbt clean compile publish-local
+cd ..
+```
+
 ## CPU generation
 You can find two example of CPU instantiation in :
 - src/main/scala/vexriscv/GenFull.scala
@@ -116,7 +130,7 @@ You can find two example of CPU instantiation in :
 To generate the corresponding RTL as a VexRiscv.v file, run (it could take time the first time you run it):
 
 NOTE :
-The VexRiscv could need the unreleased master-head of SpinalHDL. If it fail to compile, just get the SpinalHDL repository and do a "sbt publish-local" in it.
+The VexRiscv could need the unreleased master-head of SpinalHDL. If it fail to compile, just get the SpinalHDL repository and do a "sbt clean compile publish-local" in it as described in the dependencies chapter.
 
 ```sh
 sbt "run-main vexriscv.demo.GenFull"
@@ -135,6 +149,14 @@ make clean run
 # To test the GenSmallest CPU
 make clean run IBUS=SIMPLE DBUS=SIMPLE CSR=no MMU=no DEBUG_PLUGIN=no MUL=no DIV=no
 ```
+
+Those self tested tests include :
+- ISA tests from https://github.com/riscv/riscv-tests/tree/master/isa
+- Dhrystone benchmark
+- 24 tests FreeRTOS tests
+- Some handwritten tests to check the CSR, debug module and MMU plugins
+
+You can enable FreeRTOS tests by adding 'FREERTOS=yes' in the command line, will take time. Also, it use THREAD_COUNT host CPU threads to run multiple regression in parallel.
 
 ## Interactive debug of the simulated CPU via GDB OpenOCD and Verilator
 It's as described to run tests, but you just have to add DEBUG_PLUGIN_EXTERNAL=yes in the make arguments.
@@ -194,18 +216,82 @@ To connect OpenOCD (https://github.com/SpinalHDL/openocd_riscv) to the simulatio
 src/openocd -f tcl/interface/jtag_tcp.cfg -c "set BRIEY_CPU0_YAML /home/spinalvm/Spinal/VexRiscv/cpu0.yaml" -f tcl/target/briey.cfg
 ```
 
-You can find multiples software examples and demo there : https://github.com/SpinalHDL/BrieySoftware
+You can find multiples software examples and demo there : https://github.com/SpinalHDL/VexRiscvSocSoftware/tree/master/projects/briey
 
 You can find some FPGA project which instantiate the Briey SoC there (DE1-SoC, DE0-Nano): https://drive.google.com/drive/folders/0B-CqLXDTaMbKZGdJZlZ5THAxRTQ?usp=sharing
 
 There is some measurements of Briey SoC timings and area : 
 
 ```
-  Artix 7    -> 230 Mhz 3551 LUT 3612 FF 
-  Cyclone V  -> 126 Mhz 2,608 ALMs
-  Cyclone IV -> 117 Mhz 5,196 LUT 3,784 FF 
-  Cyclone II -> 102 Mhz 5,321 LUT 3,787 FF 
+  Artix 7    -> 256 Mhz 3302 LUT 3524 FF
+  Cyclone V  -> 126 Mhz 2,295 ALMs
+  Cyclone IV -> 121 Mhz 4,781 LUT 3,713 FF
+  Cyclone II -> 104 Mhz 4,902 LUT 3,718 FF
 ```
+
+## Murax SoC
+
+Murax is a very light SoC (fit in ICE40 FPGA) which could work without any external component.
+- VexRiscv RV32I[M]
+- JTAG debugger (eclipse/GDB/openocd ready)
+- 8 kB of on-chip ram
+- Interrupt support
+- APB bus for peripherals
+- 32 GPIO pin
+- one 16 bits prescaler, two 16 bits timers
+- one UART with tx/rx fifo
+
+Depending the CPU configuration, on the ICE40-hx8k FPGA with icestorm for synthesis, the full SoC will get following area/performance :
+- RV32I interlocked stages => 51 Mhz, 2387 LC 0.37 DMIPS/Mhz
+- RV32I bypassed stages    => 45 Mhz, 2718 LC 0.55 DMIPS/Mhz
+
+You can find its implementation there : src/main/scala/vexriscv/demo/Murax.scala
+
+
+To generate the Murax SoC Hardware :
+
+```sh
+# To generate the SoC without any content in the ram
+sbt "run-main vexriscv.demo.Murax"
+
+# To generate the SoC with a demo program in the SoC
+# Will blink led and echo UART RX to UART TX   (in the verilator sim, type some text and press enter to send UART frames to the Murax RX pin)
+sbt "run-main vexriscv.demo.MuraxWithRamInit"
+```
+
+Then go in src/test/cpp/murax and run the simulation with :
+
+```sh
+make clean run
+```
+
+To connect OpenOCD (https://github.com/SpinalHDL/openocd_riscv) to the simulation :
+
+```sh
+src/openocd -f tcl/interface/jtag_tcp.cfg -c "set MURAX_CPU0_YAML /home/spinalvm/Spinal/VexRiscv/cpu0.yaml" -f tcl/target/murax.cfg
+```
+
+You can find multiples software examples and demo there : https://github.com/SpinalHDL/VexRiscvSocSoftware/tree/master/projects/murax
+
+There is some measurements of Murax SoC timings and area for the 0.37 DMIPS/Mhz SoC version :
+
+```
+Murax interlocked stages (0.37 DMIPS/Mhz) ->
+  Artix 7    -> 306 Mhz 1021 LUT 1291 FF
+  Cyclone V  -> 173 Mhz 752 ALMs
+  Cyclone IV -> 140 Mhz 1483 LUT 1,250 FF
+  Cyclone II -> 127 Mhz 1484 LUT 1,249 FF
+  ICE40-HX   ->  51 Mhz 2387 LC (icestorm)
+
+MuraxFast bypassed stages (0.55 DMIPS/Mhz) ->
+  Artix 7    -> 310 Mhz 1192 LUT 1388 FF
+  Cyclone V  -> 160 Mhz 893 ALMs
+  Cyclone IV -> 142 Mhz 1726 LUT 1,284 FF
+  Cyclone II -> 106 Mhz 1714 LUT 1,283 FF
+  ICE40-HX   ->  45 Mhz, 2718 LC  (icestorm)
+```
+
+There is some scripts to generate the SoC and call the icestorm toolchain there : scripts/Murax/
 
 ## Build the RISC-V GCC
 
@@ -254,7 +340,7 @@ val cpu = new VexRiscv(
     plugins = List(
       new PcManagerSimplePlugin(
         resetVector = 0x00000000l,
-        fastPcCalculation = true
+        relaxedPcCalculation = true
       ),
       new IBusSimplePlugin(
         interfaceKeepData = false,
@@ -352,20 +438,24 @@ class SimdAddPlugin extends Plugin[VexRiscv]{
     import pipeline._
     import pipeline.config._
 
-    //Define some signals used internally to the plugin
-    val rs1 = execute.input(RS1).asUInt //32 bits UInt value of the regfile[RS1]
-    val rs2 = execute.input(RS2).asUInt
-    val rd = UInt(32 bits)
+    //Add a new scope on the execute stage (used to give a name to signals)
+    execute plug new Area {
+      //Define some signals used internally to the plugin
+      val rs1 = execute.input(RS1).asUInt
+      //32 bits UInt value of the regfile[RS1]
+      val rs2 = execute.input(RS2).asUInt
+      val rd = UInt(32 bits)
 
-    //Do some computation
-    rd( 7 downto  0) := rs1( 7 downto  0) + rs2( 7 downto  0)
-    rd(16 downto  8) := rs1(16 downto  8) + rs2(16 downto  8)
-    rd(23 downto 16) := rs1(23 downto 16) + rs2(23 downto 16)
-    rd(31 downto 24) := rs1(31 downto 24) + rs2(31 downto 24)
+      //Do some computation
+      rd(7 downto 0) := rs1(7 downto 0) + rs2(7 downto 0)
+      rd(16 downto 8) := rs1(16 downto 8) + rs2(16 downto 8)
+      rd(23 downto 16) := rs1(23 downto 16) + rs2(23 downto 16)
+      rd(31 downto 24) := rs1(31 downto 24) + rs2(31 downto 24)
 
-    //When the instruction is a SIMD_ADD one, then write the result into the register file data path.
-    when(execute.input(IS_SIMD_ADD)){
-      execute.output(REGFILE_WRITE_DATA) := rd.asBits
+      //When the instruction is a SIMD_ADD one, then write the result into the register file data path.
+      when(execute.input(IS_SIMD_ADD)) {
+        execute.output(REGFILE_WRITE_DATA) := rd.asBits
+      }
     }
   }
 }
@@ -383,3 +473,19 @@ This example is a very simple one, but each plugin can really have access to the
 - override published signals values
 - Provide an alternative implementation
 - ...
+
+As a demonstrator, this SimdAddPlugin was integrated in the src/main/scala/vexriscv/demo/GenCustomSimdAdd.scala CPU configuration and is self tested by the src/test/cpp/custom/simd_add application by running the following commands :
+
+```sh
+# Generate the CPU
+sbt "run-main vexriscv.demo.GenCustomSimdAdd"
+
+cd src/test/cpp/regression/
+
+# Optionally add TRACE=yes if you want to get the VCD waveform from the simulation.
+# Also you have to know that by default, the testbench introduce instruction/data bus stall.
+# Note the CUSTOM_SIMD_ADD flag is set to yes.
+make clean run IBUS=SIMPLE DBUS=SIMPLE CSR=no MMU=no DEBUG_PLUGIN=no MUL=no DIV=no DHRYSTONE=no REDO=2 CUSTOM_SIMD_ADD=yes
+```
+
+To retrieve the plugin related signals in the wave, just filter with `simd`.
