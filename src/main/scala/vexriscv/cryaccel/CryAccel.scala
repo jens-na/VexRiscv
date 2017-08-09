@@ -49,5 +49,4 @@ class CryAccel extends Component {
     done := True
     flushResp := False
   }
-
 }

@@ -37,26 +37,12 @@ class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extend
 
     val accel = new CryAccel()
 
-    //Add a new scope on the execute stage (used to give a name to signals)
     execute plug new Area {
       import execute._
 
-      //Define some signals used internally to the plugin
-      //val rs1 = execute.input(RS1).asUInt //32 bits UInt value of the regfile[RS1]
-      //val rs2 = execute.input(RS2).asUInt
-      //val rd = UInt(32 bits)
-
-      //Do some computation
-      /*rd(7 downto 0) := rs1(7 downto 0) + rs2(7 downto 0)
-      rd(16 downto 8) := rs1(16 downto 8) + rs2(16 downto 8)
-      rd(23 downto 16) := rs1(23 downto 16) + rs2(23 downto 16)
-      rd(31 downto 24) := rs1(31 downto 24) + rs2(31 downto 24)*/
-
       accel.io.cmd.valid := False
 
-      //When the instruction is a SIMD_ADD one, then write the result into the register file data path.
       when(arbitration.isValid && input(IS_CUSTOM_INSTR)) {
-        //execute.output(REGFILE_WRITE_DATA) := rd.asBits
         accel.io.cmd.valid := !arbitration.isStuckByOthers && !arbitration.removeIt
         arbitration.haltItself := memory.arbitration.isValid && memory.input(IS_CUSTOM_INSTR)
       }
