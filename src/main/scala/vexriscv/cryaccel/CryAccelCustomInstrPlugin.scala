@@ -3,9 +3,10 @@ package vexriscv.cryaccel
 import spinal.core._
 import vexriscv.plugin.{Masked, Plugin}
 import vexriscv.{VexRiscv, Stageable, DecoderService}
+import spinalcrypto.symmetric.aes._
 
 
-class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extends Plugin[VexRiscv] {
+class CryAccelCustomInstrPlugin(accelerator : CryAccel, opcode : String) extends Plugin[VexRiscv] {
 
   object IS_CUSTOM_INSTR extends Stageable(Bool)
 
@@ -16,7 +17,6 @@ class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extend
     dec.addDefault(IS_CUSTOM_INSTR, False)
 
     val pattern = MaskedLiteral.apply("---0000----------000-----" + opcode)
-    //val pattern = M"0000011----------000-----0110011"
 
     dec.add(
       key = pattern,
@@ -24,7 +24,7 @@ class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extend
         IS_CUSTOM_INSTR -> True,
         REGFILE_WRITE_VALID -> True,
         BYPASSABLE_EXECUTE_STAGE -> False,
-        BYPASSABLE_MEMORY_STAGE -> True,
+        BYPASSABLE_MEMORY_STAGE -> False,
         RS1_USE -> True,
         RS2_USE -> True
       )
@@ -40,9 +40,19 @@ class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extend
     execute plug new Area {
       import execute._
 
-      accel.io.cmd.valid := False
+        val fire = arbitration.isValid && input(IS_CUSTOM_INSTR)
 
-      when(arbitration.isValid && input(IS_CUSTOM_INSTR)) {
+        accel.io.cmd.instr.opcode := fire ? input(INSTRUCTION)(6 downto 0) | 0
+        accel.io.cmd.instr.rd := fire ? input(INSTRUCTION)(11 downto 7) | 0
+        accel.io.cmd.instr.tags := fire ? input(INSTRUCTION)(14 downto 12) | 0
+        accel.io.cmd.instr.rs1 := fire ? input(INSTRUCTION)(19 downto 15) | 0
+        accel.io.cmd.instr.rs2 := fire ? input(INSTRUCTION)(24 downto 20) | 0
+        accel.io.cmd.instr.funct := fire ? input(INSTRUCTION)(31 downto 25) | 0
+
+        accel.io.cmd.rs1 := fire ? input(RS1) | 0
+        accel.io.cmd.rs2 := fire ? input(RS2) | 0
+
+      when(fire) {
         accel.io.cmd.valid := !arbitration.isStuckByOthers && !arbitration.removeIt
         arbitration.haltItself := memory.arbitration.isValid && memory.input(IS_CUSTOM_INSTR)
       }
@@ -57,8 +67,7 @@ class CryAccelCustomInstrPlugin(accelerator1 : CryAccel, opcode : String) extend
       when(arbitration.isValid && input(IS_CUSTOM_INSTR)) {
         arbitration.haltItself := !accel.io.resp.valid
 
-        input(REGFILE_WRITE_DATA) := Mux(input(INSTRUCTION)(13),
-          input(INSTRUCTION), input(INSTRUCTION)).asBits
+        input(REGFILE_WRITE_DATA) := accel.io.resp.data
       }
     }
   }
