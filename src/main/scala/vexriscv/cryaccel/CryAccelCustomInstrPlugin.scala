@@ -67,7 +67,7 @@ class CryAccelCustomInstrPlugin(accelerator : CryAccel, opcode : String) extends
       when(arbitration.isValid && input(IS_CUSTOM_INSTR)) {
         arbitration.haltItself := !accel.io.resp.valid
 
-        input(REGFILE_WRITE_DATA) := accel.io.resp.data
+        input(REGFILE_WRITE_DATA) := accel.io.resp.payload.data
       }
     }
   }
