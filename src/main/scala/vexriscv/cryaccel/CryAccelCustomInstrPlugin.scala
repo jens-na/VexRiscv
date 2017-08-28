@@ -40,19 +40,20 @@ class CryAccelCustomInstrPlugin(accelerator : CryAccel, opcode : String) extends
     execute plug new Area {
       import execute._
 
-        val fire = arbitration.isValid && input(IS_CUSTOM_INSTR)
+      val fire = (arbitration.isValid && input(IS_CUSTOM_INSTR))
 
-        accel.io.cmd.instr.opcode := fire ? input(INSTRUCTION)(6 downto 0) | 0
+        accel.io.cmd.valid := False
+        accel.io.cmd.instr.opcode :=  input(INSTRUCTION)(6 downto 0)
         accel.io.cmd.instr.rd := fire ? input(INSTRUCTION)(11 downto 7) | 0
         accel.io.cmd.instr.tags := fire ? input(INSTRUCTION)(14 downto 12) | 0
         accel.io.cmd.instr.rs1 := fire ? input(INSTRUCTION)(19 downto 15) | 0
-        accel.io.cmd.instr.rs2 := fire ? input(INSTRUCTION)(24 downto 20) | 0
+        accel.io.cmd.instr.rs2 := input(INSTRUCTION)(24 downto 20)
         accel.io.cmd.instr.funct := fire ? input(INSTRUCTION)(31 downto 25) | 0
 
-        accel.io.cmd.rs1 := fire ? input(RS1) | 0
-        accel.io.cmd.rs2 := fire ? input(RS2) | 0
+        accel.io.cmd.rs1 := input(RS1)
+        accel.io.cmd.rs2 := input(RS2)
 
-      when(fire) {
+      when(arbitration.isValid && input(IS_CUSTOM_INSTR)) {
         accel.io.cmd.valid := !arbitration.isStuckByOthers && !arbitration.removeIt
         arbitration.haltItself := memory.arbitration.isValid && memory.input(IS_CUSTOM_INSTR)
       }
