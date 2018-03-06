@@ -159,6 +159,7 @@ class CsrPlugin(config : CsrPluginConfig) extends Plugin[VexRiscv] with Exceptio
   var pluginExceptionPort : Flow[ExceptionCause] = null
   var timerInterrupt : Bool = null
   var externalInterrupt : Bool = null
+  var pluginInterrupt : Bool = null
   var privilege : Bits = null
   var selfException : Flow[ExceptionCause] = null
 
@@ -223,6 +224,7 @@ class CsrPlugin(config : CsrPluginConfig) extends Plugin[VexRiscv] with Exceptio
 
     timerInterrupt    = in Bool() setName("timerInterrupt")
     externalInterrupt = in Bool() setName("externalInterrupt")
+    pluginInterrupt = Bool() setName("pluginInterrupt")
 
     privilege = RegInit(B"11")
 
@@ -270,7 +272,7 @@ class CsrPlugin(config : CsrPluginConfig) extends Plugin[VexRiscv] with Exceptio
         val MPP = RegInit(B"11")
       }
       val mip = new Area{
-        val MEIP = RegNext(externalInterrupt) init(False)
+        val MEIP = RegNext(externalInterrupt || pluginInterrupt) init(False)
         val MTIP = RegNext(timerInterrupt) init(False)
         val MSIP = RegInit(False)
       }
